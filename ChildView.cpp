@@ -17,6 +17,7 @@
 #define new DEBUG_NEW
 #endif
 
+
 namespace {
 
 CString GetSystemTimeAndDate() {
@@ -207,6 +208,7 @@ BOOL CChildView::PreCreateWindow(CREATESTRUCT& cs)
 	return TRUE;
 }
 
+/*
 void CChildView::OnPaint() 
 {
 	CPaintDC dc(this); // 그리기를 위한 디바이스 컨텍스트입니다.
@@ -227,7 +229,30 @@ void CChildView::OnPaint()
 	dc.BitBlt(0, 0, rect.Width(), rect.Height(), &memDC,
 						0, 0, SRCCOPY);
 }
+*/
 
+void CChildView::OnPaint()
+{
+	CPaintDC dc(this); // 그리기를 위한 디바이스 컨텍스트입니다.
+
+	// Rought double buffering 
+	CRect rect;
+	GetClientRect(&rect);
+
+	CDC memDC;
+	memDC.CreateCompatibleDC(&dc);
+	CBitmap bitmap;
+	bitmap.CreateCompatibleBitmap(&dc, rect.Width(), rect.Height());
+	memDC.SelectObject(&bitmap);
+	memDC.Rectangle(0, 0, rect.Width(), rect.Height());
+
+	OnMyPaint(&memDC);
+
+	dc.BitBlt(0, 0, rect.Width(), rect.Height(), &memDC,
+		0, 0, SRCCOPY);
+}
+
+/*
 afx_msg void CChildView::OnMyPaint(CDC* dc) {
 	// 현재 시간 표시
 	dc->TextOutW(10, 10, m_current_time);
@@ -255,6 +280,45 @@ afx_msg void CChildView::OnMyPaint(CDC* dc) {
 
 	// 폴리곤 그리기
 	Polygon(dc, {{300, 100}, {300, 50}, {250, 75}, {250, 100}}, RGB(255, 0, 255));
+}
+*/
+
+
+
+afx_msg void CChildView::OnMyPaint(CDC* dc) {
+	// 현재 시간 표시
+	dc->TextOutW(10, 10, m_current_time);
+
+	// 마우스 위치 표시
+	std::string pos =
+		"(" + std::to_string(m_mouse_pos.x) + ", "
+		+ std::to_string(m_mouse_pos.y) + ")";
+	dc->TextOut(10, 30, CString(pos.c_str()));
+
+	// 마우스 이벤트 표시
+	dc->TextOut(10, 50, _T("Event: ") + m_mouse_event);
+
+
+	dc->TextOut(10, 70, _T("Keyboard: ") + CString(std::to_string(m_keyboard).c_str()));
+
+	
+	if (m_toolbar_mode == kToolbarDrawCircle) {
+		// 튀기는 공 그리기
+		Circle(dc, m_ball_pos, m_ball_radius, RGB(0, 255, 255));
+	}
+	
+
+	Rectangle(dc, m_wall_rect, RGB(255, 255, 0));
+
+	
+
+
+	// 직선 그리기
+	Line(dc, { 100, 100 }, { 200, 300 });
+
+	// 폴리곤 그리기
+	Polygon(dc, { {300, 100}, {300, 50}, {250, 75}, {250, 100} }, RGB(255, 0, 255));
+	
 }
 
 void CChildView::OnContextMenu(CWnd* pWnd, CPoint point)
@@ -316,6 +380,16 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	if (CWnd::OnCreate(lpCreateStruct) == -1)
 		return -1;
 
+	CRect rect;
+	GetClientRect(&rect);
+	m_ball_pos.x = rect.Width() / 2;
+	m_ball_pos.y = rect.Height() / 2;
+
+	m_wall_rect.left = 0;
+	m_wall_rect.right = 0;
+	m_wall_rect.top = 0;
+	m_wall_rect.bottom = 0;
+
 	// 시계 타이머 설정(함수 호출 주기 설정)
 	SetTimer(kTimerClock, /* ms */ 1000, nullptr);
 	m_timer_event_listeners.Add(kTimerClock, [this](){ m_current_time = GetSystemTimeAndDate(); });
@@ -327,6 +401,7 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	// 마우스 이동 이벤트 리스너 추가
 	m_mouse_event_listeners.Add(kMouseMove, [this](auto, auto p) { m_mouse_pos = p; });
 
+	/*
 	m_mouse_event_listeners.Add(kMouseMove, [this](auto, auto p) {
 		auto w = m_wall_rect.Width();
 		auto h = m_wall_rect.Height();
@@ -335,6 +410,31 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		m_wall_rect.top = p.y - h / 2;
 		m_wall_rect.bottom = p.y + h / 2;
 	});
+	*/
+
+	m_mouse_event_listeners.Add(kMouseLButtonDown, [this](auto, auto p) {
+		if (m_toolbar_mode == kToolbarDrawRectangle) {
+			auto w = m_wall_rect.Width();
+			auto h = m_wall_rect.Height();
+			m_wall_rect.left = p.x;
+			m_wall_rect.right = p.x;
+			m_wall_rect.top = p.y;
+			m_wall_rect.bottom = p.y;
+		}
+		
+		});
+
+	m_mouse_event_listeners.Add(kMouseLButtonUp, [this](auto, auto p) {
+		if (m_toolbar_mode == kToolbarDrawRectangle) {
+			auto w = m_wall_rect.Width();
+			auto h = m_wall_rect.Height();
+			// m_wall_rect.left = p.x - w / 2;
+			m_wall_rect.right = p.x;
+			// m_wall_rect.top = p.y - h / 2;
+			m_wall_rect.bottom = p.y;
+		}
+		});
+
 
 	// 마우스 클릭 이벤트 리스너
 	m_mouse_event_listeners.Add(kMouseLButtonDown, [this](auto, auto p) { m_mouse_event = "LButtonDown"; });
@@ -351,8 +451,6 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 	// 우클릭 시 그리기 모드 취소
 	m_mouse_event_listeners.Add(kMouseRButtonDown, [this](auto, auto p) { m_toolbar_mode = kToolbarNone; });
-	// ESC 시 그리기 모드 취소
-	m_keyboard_listeners.Add(VK_ESCAPE, [this](...) { m_toolbar_mode = kToolbarNone; });
 
 	return 0;
 }
@@ -426,8 +524,13 @@ void CChildView::OnMButtonDblClk(UINT nFlags, CPoint point) {
 
 
 void CChildView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) {
-	m_keyboard_listeners(nChar, nRepCnt, nFlags);
 	m_keyboard = nChar;
+	m_toolbar_mode = kToolbarNone;
+	switch (nChar) {
+		case VK_ESCAPE:
+			m_toolbar_mode = kToolbarNone;
+			break;
+	}
 	CWnd::OnKeyDown(nChar, nRepCnt, nFlags);
 }
 
