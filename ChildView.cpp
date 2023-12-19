@@ -18,6 +18,11 @@
 #endif
 
 
+std::vector<CRect> rect_arr;
+int rect_cnt = 0;
+
+
+
 namespace {
 
 CString GetSystemTimeAndDate() {
@@ -307,8 +312,10 @@ afx_msg void CChildView::OnMyPaint(CDC* dc) {
 		Circle(dc, m_ball_pos, m_ball_radius, RGB(0, 255, 255));
 	}
 	
-
-	Rectangle(dc, m_wall_rect, RGB(255, 255, 0));
+	for (auto& a : rect_arr) {
+		Rectangle(dc, a, RGB(255, 255, 0));
+	}
+	//Rectangle(dc, m_wall_rect, RGB(255, 255, 0));
 
 	
 
@@ -414,24 +421,23 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 	m_mouse_event_listeners.Add(kMouseLButtonDown, [this](auto, auto p) {
 		if (m_toolbar_mode == kToolbarDrawRectangle) {
-			auto w = m_wall_rect.Width();
-			auto h = m_wall_rect.Height();
-			m_wall_rect.left = p.x;
-			m_wall_rect.right = p.x;
-			m_wall_rect.top = p.y;
-			m_wall_rect.bottom = p.y;
+			rect_arr.push_back(CRect());
+			rect_arr[rect_cnt].left = p.x;
+			rect_arr[rect_cnt].right = p.x;
+			rect_arr[rect_cnt].top = p.y;
+			rect_arr[rect_cnt].bottom = p.y;
 		}
 		
 		});
 
 	m_mouse_event_listeners.Add(kMouseLButtonUp, [this](auto, auto p) {
 		if (m_toolbar_mode == kToolbarDrawRectangle) {
-			auto w = m_wall_rect.Width();
-			auto h = m_wall_rect.Height();
+			
 			// m_wall_rect.left = p.x - w / 2;
-			m_wall_rect.right = p.x;
+			rect_arr[rect_cnt].right = p.x;
 			// m_wall_rect.top = p.y - h / 2;
-			m_wall_rect.bottom = p.y;
+			rect_arr[rect_cnt].bottom = p.y;
+			rect_cnt += 1;
 		}
 		});
 
