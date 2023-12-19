@@ -256,15 +256,14 @@ afx_msg void CChildView::OnMyPaint(CDC* dc) {
 	// 폴리곤 그리기
 	//Polygon(dc, {{300, 100}, {300, 50}, {250, 75}, {250, 100}}, RGB(255, 0, 255));
 
-	// 직사각형들 그리기
-	for (auto x : m_rects)
-		Rectangle(dc, x, RGB(255, 255, 0));
-
-	// 원들 그리기
-	for (auto x : m_circles) {
-		int rad = abs(x.left - x.right) / 2;
-		CPoint center{ x.left + rad, x.top + rad };
-		Circle(dc, center, rad, RGB(255, 255, 255));
+	for (auto x : m_shapes) {
+		if(dynamic_cast<CRectangle *>(x))
+			Rectangle(dc, CRect{ x->p1_, x->p2_ }, RGB(255, 255, 0), 0);
+		else if (dynamic_cast<CCircle*>(x)) {
+			int rad = abs(x->p1_.x - x->p2_.x) / 2;
+			CPoint center{ (x->p1_.x + x->p2_.x) / 2, (x->p1_.y + x->p2_.y) / 2 };
+			Circle(dc, center, rad, RGB(255, 255, 255));
+		}
 	}
 }
 
@@ -352,12 +351,14 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_mouse_event_listeners.Add(kMouseDrag, [this](auto, auto p) {
 		switch (m_toolbar_mode) {
 		case kToolbarDrawRectangle:
-			m_rects.back().right = p.x;
-			m_rects.back().bottom = p.y;
+			/*m_rects.back().right = p.x;
+			m_rects.back().bottom = p.y;*/
+			m_shapes.back()->p2_ = p;
 			break;
 		case kToolbarDrawCircle:
-			m_circles.back().right = p.x;
-			m_circles.back().bottom = p.y;
+			/*m_circles.back().right = p.x;
+			m_circles.back().bottom = p.y;*/
+			m_shapes.back()->p2_ = p;
 			break;
 		}
 
@@ -367,10 +368,13 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		m_mouse_event = "LButtonDown"; 
 		switch (m_toolbar_mode) {
 		case kToolbarDrawRectangle:
-			m_rects.push_back(CRect{ CPoint{p.x, p.y}, CSize{0,0} });
+			//m_rects.push_back(CRect{ CPoint{p.x, p.y}, CSize{0,0} });
+			m_shapes.push_back(new CRectangle(CPoint{ p.x, p.y }, CPoint{p.x, p.y}));
+			//m_shapes.push_back(std::make_shared<CRectangle>(CPoint{ p.x, p.y }));
 			break;
 		case kToolbarDrawCircle:
-			m_circles.push_back(CRect{ CPoint{p.x, p.y},CSize{0,0} });
+			//m_circles.push_back(CRect{ CPoint{p.x, p.y}, CSize{0,0} });
+			m_shapes.push_back(new CCircle(CPoint{ p.x, p.y }, CPoint{ p.x, p.y }));
 			break;
 		}
 	});
