@@ -17,6 +17,13 @@
 
 class CChildView : public CWnd
 {
+	bool m_bIsDrawing;         // 드래그 중인지 여부
+	CPoint m_ptRectStart;      // 직사각형의 시작점
+	CPoint m_ptRectEnd;        // 직사각형의 끝점
+
+	CPoint m_ptCirStart;
+	CPoint m_ptCirEnd;
+	
 public:
 	CChildView();
 
@@ -31,6 +38,8 @@ public:
 	};
 
 	ToolbarMode m_toolbar_mode = kToolbarNone;
+
+
 
 public:
 	CPoint m_mouse_pos;
@@ -119,5 +128,10 @@ public:
 	EventListener<UINT, UINT, UINT> m_keyboard_listeners;
 
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
+
+	
+
+
+
 };
 
