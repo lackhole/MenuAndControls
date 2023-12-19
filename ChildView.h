@@ -47,6 +47,12 @@ public:
 	// 고무벽 정보
 	CRect m_wall_rect{CPoint{}, CSize{20, 200}};
 
+	// 직사각형 리스트
+	std::list<CRect> m_rects;
+
+
+	// 원 벡터
+	std::list<CRect> m_circles;
 	void CalculateBall();
 
 public:
@@ -77,7 +83,7 @@ public:
 
 	enum MouseEvent {
 		kMouseMove,
-
+		kMouseDrag,
 		kMouseLButtonDown,
 		kMouseLButtonUp,
 		kMouseLButtonDblClk,

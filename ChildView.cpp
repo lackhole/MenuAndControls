@@ -245,16 +245,27 @@ afx_msg void CChildView::OnMyPaint(CDC* dc) {
 	dc->TextOut(10, 70, _T("Keyboard: ") + CString(std::to_string(m_keyboard).c_str()));
 
 	// 튀기는 공 그리기
-	Circle(dc, m_ball_pos, m_ball_radius, RGB(0, 255, 255));
+	//Circle(dc, m_ball_pos, m_ball_radius, RGB(0, 255, 255));
 
 	// 고무 벽 그리기
-	Rectangle(dc, m_wall_rect, RGB(255, 255, 0));
+	//Rectangle(dc, m_wall_rect, RGB(255, 255, 0));
 
 	// 직선 그리기
-	Line(dc, {100, 100}, {200, 300});
+	//Line(dc, {100, 100}, {200, 300});
 
 	// 폴리곤 그리기
-	Polygon(dc, {{300, 100}, {300, 50}, {250, 75}, {250, 100}}, RGB(255, 0, 255));
+	//Polygon(dc, {{300, 100}, {300, 50}, {250, 75}, {250, 100}}, RGB(255, 0, 255));
+
+	// 직사각형들 그리기
+	for (auto x : m_rects)
+		Rectangle(dc, x, RGB(255, 255, 0));
+
+	// 원들 그리기
+	for (auto x : m_circles) {
+		int rad = abs(x.left - x.right) / 2;
+		CPoint center{ x.left + rad, x.top + rad };
+		Circle(dc, center, rad, RGB(255, 255, 255));
+	}
 }
 
 void CChildView::OnContextMenu(CWnd* pWnd, CPoint point)
@@ -336,8 +347,33 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		m_wall_rect.bottom = p.y + h / 2;
 	});
 
+
+	// 마우스 드래그 이벤트 리스너
+	m_mouse_event_listeners.Add(kMouseDrag, [this](auto, auto p) {
+		switch (m_toolbar_mode) {
+		case kToolbarDrawRectangle:
+			m_rects.back().right = p.x;
+			m_rects.back().bottom = p.y;
+			break;
+		case kToolbarDrawCircle:
+			m_circles.back().right = p.x;
+			m_circles.back().bottom = p.y;
+			break;
+		}
+
+	});
 	// 마우스 클릭 이벤트 리스너
-	m_mouse_event_listeners.Add(kMouseLButtonDown, [this](auto, auto p) { m_mouse_event = "LButtonDown"; });
+	m_mouse_event_listeners.Add(kMouseLButtonDown, [this](auto, auto p) { 
+		m_mouse_event = "LButtonDown"; 
+		switch (m_toolbar_mode) {
+		case kToolbarDrawRectangle:
+			m_rects.push_back(CRect{ CPoint{p.x, p.y}, CSize{0,0} });
+			break;
+		case kToolbarDrawCircle:
+			m_circles.push_back(CRect{ CPoint{p.x, p.y},CSize{0,0} });
+			break;
+		}
+	});
 	m_mouse_event_listeners.Add(kMouseLButtonUp, [this](auto, auto p) { m_mouse_event = "LButtonUp"; });
 	m_mouse_event_listeners.Add(kMouseLButtonDblClk, [this](auto, auto p) { m_mouse_event = "LButtonDblClk"; });
 
@@ -359,6 +395,9 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 void CChildView::OnMouseMove(UINT nFlags, CPoint point) {
 	m_mouse_event_listeners(kMouseMove, nFlags, point);
+	if ((nFlags & MK_LBUTTON) == MK_LBUTTON)
+		m_mouse_event_listeners(kMouseDrag, nFlags, point);
+
 	CWnd::Invalidate();
 	CWnd::OnMouseMove(nFlags, point);
 }
