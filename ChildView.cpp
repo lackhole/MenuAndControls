@@ -11,6 +11,7 @@
 #include <ctime>
 #include <iomanip>
 #include <string>
+#include <thread>
 #include <sstream>
 
 #ifdef _DEBUG
@@ -36,8 +37,8 @@ CString GetSystemTimeAndDate() {
 \color_line: 테두리의 색
 */
 void Circle(CDC* dc,
-						CPoint center, int radius, COLORREF color,
-						int thickness = 1, COLORREF color_line = RGB(0, 0, 0))
+			CPoint center, int radius, COLORREF color,
+			int thickness = 1, COLORREF color_line = RGB(0, 0, 0))
 {
   // 새로운 펜 객체 사용
 	CPen pen(thickness <= 0 ? PS_NULL : PS_SOLID, thickness, color_line);
@@ -49,7 +50,7 @@ void Circle(CDC* dc,
 
 	// 원(타원) 그리기
 	dc->Ellipse(center.x - radius, center.y - radius,
-							center.x + radius, center.y + radius);
+				center.x + radius, center.y + radius);
 
 	// 사용하는 펜과 객체 도구를 원래대로 되돌리기
 	dc->SelectObject(prev_brush);
@@ -67,8 +68,8 @@ void Circle(CDC* dc,
 \color_line: 테두리의 색
 */
 void Rectangle(CDC* dc,
-							 CRect rect, COLORREF color,
-							 int thickness = 1, COLORREF color_line = RGB(0, 0, 0)) {
+				CRect rect, COLORREF color,
+				int thickness = 1, COLORREF color_line = RGB(0, 0, 0)) {
 	CPen pen(thickness <= 0 ? PS_NULL : PS_SOLID, thickness, color_line);
 	auto pen_prev = dc->SelectObject(&pen);
 
@@ -110,7 +111,7 @@ void Rectangle(CDC* dc,
 \color_line: 직선의 색
 */
 void Line(CDC* dc,
-					CPoint start, CPoint end, int thickness = 1, COLORREF color = RGB(0, 0, 0)) {
+		  CPoint start, CPoint end, int thickness = 1, COLORREF color = RGB(0, 0, 0)) {
 	CPen pen(PS_SOLID, thickness, color);
 	auto pen_prev = dc->SelectObject(&pen);
 
@@ -229,32 +230,18 @@ void CChildView::OnPaint()
 }
 
 afx_msg void CChildView::OnMyPaint(CDC* dc) {
-	// 현재 시간 표시
-	dc->TextOutW(10, 10, m_current_time);
+	// 저장되어 있는 shape 객체 전체 그리기
+	for (const auto& shape : m_shapes) {
+		shape->Draw(dc);
+	}
 
-	// 마우스 위치 표시
-	std::string pos =
-		"(" + std::to_string(m_mouse_pos.x) + ", "
-		+ std::to_string(m_mouse_pos.y) + ")";
-	dc->TextOut(10, 30, CString(pos.c_str()));
+	// shape preview 그리기
+	m_shape_preview->Draw(dc);
 
-	// 마우스 이벤트 표시
-	dc->TextOut(10, 50, _T("Event: ") + m_mouse_event);
-
-
-	dc->TextOut(10, 70, _T("Keyboard: ") + CString(std::to_string(m_keyboard).c_str()));
-
-	// 튀기는 공 그리기
-	Circle(dc, m_ball_pos, m_ball_radius, RGB(0, 255, 255));
-
-	// 고무 벽 그리기
-	Rectangle(dc, m_wall_rect, RGB(255, 255, 0));
-
-	// 직선 그리기
-	Line(dc, {100, 100}, {200, 300});
-
-	// 폴리곤 그리기
-	Polygon(dc, {{300, 100}, {300, 50}, {250, 75}, {250, 100}}, RGB(255, 0, 255));
+	// 선택된 shape 의 테두리 highlight
+	for (const auto& shape : m_selected_highlights) {
+		shape.Draw(dc);
+	}
 }
 
 void CChildView::OnContextMenu(CWnd* pWnd, CPoint point)
@@ -268,91 +255,111 @@ void CChildView::OnContextMenu(CWnd* pWnd, CPoint point)
 }
 
 
-void CChildView::CalculateBall() {
-	m_ball_pos.x += m_ball_velocity.x;
-	m_ball_pos.y += m_ball_velocity.y;
-
-	// 화면 바깥을 넘어갔는지 검사
-	{
-		CRect rect;
-		GetClientRect(&rect);
-
-		if (m_ball_pos.x + m_ball_radius >= rect.Width()) {
-			m_ball_pos.x -= m_ball_pos.x + m_ball_radius - rect.Width();
-			m_ball_velocity.x *= -1;
-		} else if (m_ball_pos.x - m_ball_radius < 0) {
-			m_ball_pos.x = -(m_ball_pos.x - m_ball_radius);
-			m_ball_velocity.x *= -1;
-		}
-
-		if (m_ball_pos.y + m_ball_radius >= rect.Height()) {
-			m_ball_pos.y -= m_ball_pos.y + m_ball_radius - rect.Height();
-			m_ball_velocity.y *= -1;
-		} else if (m_ball_pos.y - m_ball_radius < 0) {
-			m_ball_pos.y = -(m_ball_pos.y - m_ball_radius);
-			m_ball_velocity.y *= -1;
-		}
-	}
-
-	// 고무벽과 충돌했는지 검사 (rough)
-	CRect collision;
-	if (collision.IntersectRect(CRect(m_ball_pos, SIZE{ m_ball_radius, m_ball_radius }), m_wall_rect)) {
-		auto ball_xl = m_ball_pos.x - m_ball_radius;
-		auto ball_xr = m_ball_pos.x + m_ball_radius;
-
-		if (ball_xl <= m_wall_rect.left) {
-			m_ball_pos.x -= 2 * (ball_xr - m_wall_rect.left);
-			m_ball_velocity.x *= -1;
-		} else if (ball_xr >= m_wall_rect.right) {
-			m_ball_pos.x += 2 * (m_wall_rect.right - ball_xl);
-			m_ball_velocity.x *= -1;
-		}
-	}
-}
-
-
 int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {
 	if (CWnd::OnCreate(lpCreateStruct) == -1)
 		return -1;
 
-	// 시계 타이머 설정(함수 호출 주기 설정)
-	SetTimer(kTimerClock, /* ms */ 1000, nullptr);
-	m_timer_event_listeners.Add(kTimerClock, [this](){ m_current_time = GetSystemTimeAndDate(); });
+	// shape preview 초기화
+	m_shape_preview = std::make_unique<ShapeNull>();
 
-	// 공 튀기기 타이머 설정
-	SetTimer(kTimerPhysics, /* ms */ 10, nullptr);
-	m_timer_event_listeners.Add(kTimerPhysics, [this]() { CalculateBall(); });
-
-	// 마우스 이동 이벤트 리스너 추가
-	m_mouse_event_listeners.Add(kMouseMove, [this](auto, auto p) { m_mouse_pos = p; });
-
-	m_mouse_event_listeners.Add(kMouseMove, [this](auto, auto p) {
-		auto w = m_wall_rect.Width();
-		auto h = m_wall_rect.Height();
-		m_wall_rect.left = p.x - w / 2;
-		m_wall_rect.right = p.x + w / 2;
-		m_wall_rect.top = p.y - h / 2;
-		m_wall_rect.bottom = p.y + h / 2;
+	// <영역 선택> 클릭 시
+	m_toolbar_listeners.Add(kToolbarSelectArea, [this]() {
+		m_shape_builder = std::make_unique<ShapeBuilder<ShapeRectangle>>();
+		m_shape_preview = m_shape_builder->Create();
+		m_shape_preview->SetColor(RGB(255, 0, 0));
+		m_selected_highlights.clear();
 	});
 
-	// 마우스 클릭 이벤트 리스너
-	m_mouse_event_listeners.Add(kMouseLButtonDown, [this](auto, auto p) { m_mouse_event = "LButtonDown"; });
-	m_mouse_event_listeners.Add(kMouseLButtonUp, [this](auto, auto p) { m_mouse_event = "LButtonUp"; });
-	m_mouse_event_listeners.Add(kMouseLButtonDblClk, [this](auto, auto p) { m_mouse_event = "LButtonDblClk"; });
+	// <도형 지우기> 클릭 시
+	m_toolbar_listeners.Add(kToolbarRemoveSelected, [this]() {
+		RemoveSelectedObjects();
+	});
 
-	m_mouse_event_listeners.Add(kMouseRButtonDown, [this](auto, auto p) { m_mouse_event = "RButtonDown"; });
-	m_mouse_event_listeners.Add(kMouseRButtonUp, [this](auto, auto p) { m_mouse_event = "RButtonUp"; });
-	m_mouse_event_listeners.Add(kMouseRButtonDblClk, [this](auto, auto p) { m_mouse_event = "RButtonDblClk"; });
+	// <DELETE> 키 누를 시
+	m_keyboard_listeners.Add(VK_DELETE, [this](...) {
+		RemoveSelectedObjects();
+	});
 
-	m_mouse_event_listeners.Add(kMouseMButtonDown, [this](auto, auto p) { m_mouse_event = "MButtonDown"; });
-	m_mouse_event_listeners.Add(kMouseMButtonUp, [this](auto, auto p) { m_mouse_event = "MButtonUp"; });
-	m_mouse_event_listeners.Add(kMouseMButtonDblClk, [this](auto, auto p) { m_mouse_event = "MButtonDblClk"; });
+	// <BACKSPACE> 키 누를 시
+	m_keyboard_listeners.Add(VK_BACK, [this](...) {
+		RemoveSelectedObjects();
+	});
+
+	// <사각형 그리기> 클릭 시
+	m_toolbar_listeners.Add(kToolbarDrawRectangle, [this]() {
+		m_shape_builder = std::make_unique<ShapeBuilder<ShapeRectangle>>();
+		m_shape_preview = m_shape_builder->Create();
+	});
+
+	// <원 그리기> 클릭 시
+	m_toolbar_listeners.Add(kToolbarDrawCircle, [this]() {
+		m_shape_builder = std::make_unique<ShapeBuilder<ShapeEllipse>>();
+		m_shape_preview = m_shape_builder->Create();
+	});
+
+	// <선 그리기> 클릭 시
+	m_toolbar_listeners.Add(kToolbarDrawLine, [this]() {
+		m_shape_builder = std::make_unique<ShapeBuilder<ShapeLine>>();
+		m_shape_preview = m_shape_builder->Create();
+	});
+
+	// <곡선 그리기> 클릭 시
+	m_toolbar_listeners.Add(kToolbarDrawCurve, [this]() {
+		m_shape_builder = std::make_unique<ShapeBuilder<ShapeCurve>>();
+		m_shape_preview = m_shape_builder->Create();
+	});
+
+	// 마우스 드래그 시
+	m_mouse_event_listeners.Add(kMouseMove, [this](auto flags, auto p) {
+		// 드래그 중 인지 검사
+		if (flags & MK_LBUTTON) {
+			m_shape_preview->SetEndpoint(p);
+			m_selected_highlights.clear();
+		}
+	});
+
+	// 왼 마우스 버튼 누를 시
+	m_mouse_event_listeners.Add(kMouseLButtonDown, [this](auto, auto p) {
+		if (m_toolbar_mode != kToolbarNone && m_toolbar_mode != kToolbarRemoveSelected) {
+			m_shape_preview->SetStartpoint(p);
+			m_shape_preview->SetEndpoint(p);
+		}
+	});
+
+	// 왼 마우스 버튼 뗄 시
+	m_mouse_event_listeners.Add(kMouseLButtonUp, [this](...) {
+		if (m_toolbar_mode == kToolbarNone)
+			return;
+
+		// <영역 선택> 모드였을 경우
+		if (m_toolbar_mode == kToolbarSelectArea) {
+			m_selected_shapes = FindObjectsInArea();
+			CreateSelectedHighlights();
+			m_shape_preview->SetStartpoint({ 0, 0 });
+			m_shape_preview->SetEndpoint({ 0, 0 });
+			return;
+		}
+
+		// <무언가 그리기> 모드였을 경우
+
+		// shape preview 가 NULL 일 때
+		if (m_shape_preview->IsNull())
+			return;
+
+		// 그 외의 경우(실제 그리기 모드인 경우)
+		m_shapes.emplace_back(std::move(m_shape_preview));
+		m_shape_preview = m_shape_builder->Create();
+	});
 
 	// 우클릭 시 그리기 모드 취소
-	m_mouse_event_listeners.Add(kMouseRButtonDown, [this](auto, auto p) { m_toolbar_mode = kToolbarNone; });
+	m_mouse_event_listeners.Add(kMouseRButtonDown, [this](auto, auto p) {
+		UnselectToolbar();
+	});
 	// ESC 시 그리기 모드 취소
-	m_keyboard_listeners.Add(VK_ESCAPE, [this](...) { m_toolbar_mode = kToolbarNone; });
+	m_keyboard_listeners.Add(VK_ESCAPE, [this](...) {
+		UnselectToolbar();
+	});
 
 	return 0;
 }
@@ -427,7 +434,6 @@ void CChildView::OnMButtonDblClk(UINT nFlags, CPoint point) {
 
 void CChildView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) {
 	m_keyboard_listeners(nChar, nRepCnt, nFlags);
-	m_keyboard = nChar;
 	CWnd::OnKeyDown(nChar, nRepCnt, nFlags);
 }
 
@@ -438,9 +444,13 @@ void CChildView::OnTimer(UINT_PTR nIDEvent) {
 	CWnd::OnTimer(nIDEvent);
 }
 
-// 
 void CChildView::OnSelectArea() {
 	m_toolbar_mode = (m_toolbar_mode == kToolbarSelectArea ? kToolbarNone : kToolbarSelectArea);
+	if (m_toolbar_mode == kToolbarSelectArea) {
+		m_toolbar_listeners(kToolbarSelectArea);
+	} else {
+		UnselectToolbar();
+	}
 }
 void CChildView::OnUpdateSelectarea(CCmdUI* pCmdUI) {
 	pCmdUI->SetCheck(m_toolbar_mode == kToolbarSelectArea);
@@ -449,6 +459,11 @@ void CChildView::OnUpdateSelectarea(CCmdUI* pCmdUI) {
 
 void CChildView::OnDrawLine() {
 	m_toolbar_mode = (m_toolbar_mode == kToolbarDrawLine ? kToolbarNone : kToolbarDrawLine);
+	if (m_toolbar_mode == kToolbarDrawLine) {
+		m_toolbar_listeners(kToolbarDrawLine);
+	} else {
+		UnselectToolbar();
+	}
 }
 void CChildView::OnUpdateDrawLine(CCmdUI* pCmdUI) {
 	pCmdUI->SetCheck(m_toolbar_mode == kToolbarDrawLine);
@@ -456,18 +471,28 @@ void CChildView::OnUpdateDrawLine(CCmdUI* pCmdUI) {
 
 void CChildView::OnDrawCurve() {
 	m_toolbar_mode = (m_toolbar_mode == kToolbarDrawCurve ? kToolbarNone : kToolbarDrawCurve);
+	if (m_toolbar_mode == kToolbarDrawCurve) {
+		m_toolbar_listeners(kToolbarDrawCurve);
+	} else {
+		UnselectToolbar();
+	}
 }
 void CChildView::OnUpdateDrawCurve(CCmdUI* pCmdUI) {
 	pCmdUI->SetCheck(m_toolbar_mode == kToolbarDrawCurve);
 }
 
 void CChildView::OnRemoveSelected() {
-	// TODO: 여기에 명령 처리기 코드를 추가합니다.
+	m_toolbar_listeners(kToolbarRemoveSelected);
 }
 
 
 void CChildView::OnDrawRectangle() {
 	m_toolbar_mode = (m_toolbar_mode == kToolbarDrawRectangle ? kToolbarNone : kToolbarDrawRectangle);
+	if (m_toolbar_mode == kToolbarDrawRectangle) {
+		m_toolbar_listeners(kToolbarDrawRectangle);
+	} else {
+		UnselectToolbar();
+	}
 }
 void CChildView::OnUpdateDrawRectangle(CCmdUI* pCmdUI) {
 	pCmdUI->SetCheck(m_toolbar_mode == kToolbarDrawRectangle);
@@ -476,6 +501,11 @@ void CChildView::OnUpdateDrawRectangle(CCmdUI* pCmdUI) {
 
 void CChildView::OnDrawCircle() {
 	m_toolbar_mode = (m_toolbar_mode == kToolbarDrawCircle? kToolbarNone : kToolbarDrawCircle);
+	if (m_toolbar_mode == kToolbarDrawCircle) {
+		m_toolbar_listeners(kToolbarDrawCircle);
+	} else {
+		UnselectToolbar();
+	}
 }
 void CChildView::OnUpdateDrawCircle(CCmdUI* pCmdUI) {
 	pCmdUI->SetCheck(m_toolbar_mode == kToolbarDrawCircle);
@@ -485,4 +515,61 @@ void CChildView::OnUpdateDrawCircle(CCmdUI* pCmdUI) {
 BOOL CChildView::OnEraseBkgnd(CDC* pDC) {
 	return TRUE;
 	// return CWnd::OnEraseBkgnd(pDC);
+}
+
+
+void CChildView::UnselectToolbar() {
+	m_toolbar_mode = kToolbarNone;
+	m_shape_builder = std::make_unique<ShapeBuilder<ShapeNull>>();
+	m_shape_preview = m_shape_builder->Create();
+	m_selected_highlights.clear();
+}
+
+void CChildView::RemoveSelectedObjects() {
+	std::cout << "Removing " << m_selected_shapes.size() << " objects\n";
+	for (auto it : m_selected_shapes) {
+		m_shapes.erase(it);
+	}
+	m_selected_shapes.clear();
+	m_selected_highlights.clear();
+	CWnd::Invalidate();
+}
+
+std::vector<CChildView::shape_iterator> CChildView::FindObjectsInArea() {
+	std::vector<shape_iterator> out;
+
+	const auto tl = m_shape_preview->Start();
+	const auto br = m_shape_preview->End();
+
+	for (auto it = m_shapes.begin(); it != m_shapes.end(); ++it) {
+		if ((*it)->IsInArea(tl, br)) {
+			out.push_back(it);
+		}
+	}
+
+	std::cout << "Select " << out.size() << " objects\n";
+	return out;
+}
+
+void CChildView::CreateSelectedHighlights() {
+	m_selected_highlights.clear();
+
+	for (auto it : m_selected_shapes) {
+		auto tl = (*it)->TopLeft();
+		auto br = (*it)->BottomRight();
+
+		// 하이라이트의 크기는 shape 보다 조금 크게 설정
+		tl.x -= 5;
+		tl.y -= 5;
+		br.x += 5;
+		br.y += 5;
+
+		ShapeRectangle area;
+		area.SetStartpoint(tl);
+		area.SetEndpoint(br);
+		area.SetColor(RGB(255, 0, 0));
+		area.SetPenStyle(PS_DASH);
+
+		m_selected_highlights.emplace_back(std::move(area));
+	}
 }
