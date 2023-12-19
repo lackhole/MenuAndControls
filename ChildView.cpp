@@ -69,7 +69,7 @@ void Circle(CDC* dc,
 void Rectangle(CDC* dc,
 							 CRect rect, COLORREF color,
 							 int thickness = 1, COLORREF color_line = RGB(0, 0, 0)) {
-	CPen pen(thickness <= 0 ? PS_NULL : PS_SOLID, thickness, color_line);
+	CPen pen(thickness <= 0 ? PS_DASH : PS_SOLID, thickness, color_line);
 	auto pen_prev = dc->SelectObject(&pen);
 
 	CBrush brush(color);
@@ -262,13 +262,13 @@ afx_msg void CChildView::OnMyPaint(CDC* dc) {
 
 	// 선택 영역 직사각형 표기
 	Area = CRect(TOP_LEFT, BOTTOM_RIGHT);
-	Rectangle(dc, Area, RGB(255, 255, 255));
+	Rectangle(dc, Area, RGB(255, 255, 255), -1, RGB(0, 0, 255));
 
 	for (auto x : m_shapes) {
 		auto color = RGB(255, 255, 0);
 		if (x->selected_) color = RGB(0, 0, 255);
 		if(dynamic_cast<CRectangle *>(x))
-			Rectangle(dc, CRect{ x->p1_, x->p2_ }, color, 0);
+			Rectangle(dc, CRect{ x->p1_, x->p2_ }, color, 1);
 		else if (dynamic_cast<CCircle*>(x)) {
 			int rad = abs(x->p1_.x - x->p2_.x) / 2;
 			CPoint center{ (x->p1_.x + x->p2_.x) / 2, (x->p1_.y + x->p2_.y) / 2 };
@@ -561,6 +561,8 @@ void CChildView::OnRemoveSelected() {
 			iter++;
 		}
 	}
+	BOTTOM_RIGHT = 0;
+	TOP_LEFT = 0;
 }
 
 
