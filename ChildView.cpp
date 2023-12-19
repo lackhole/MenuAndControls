@@ -269,11 +269,14 @@ afx_msg void CChildView::OnMyPaint(CDC* dc) {
 	}
 
 	// 곡선 그리기
-	for (auto iter = m_points.begin(); iter != m_points.end(); iter++) {
-		if ((iter + 1) != m_points.end()) {
-			Line(dc, {(*iter).x, (*iter).y}, {(*(iter + 1)).x, (*(iter + 1)).y});
+	for (auto curve : m_curves) {
+		for (auto iter = curve.begin(); iter != curve.end(); iter++) {
+			if ((iter + 1) != curve.end()) {
+				Line(dc, { (*iter).x, (*iter).y }, { (*(iter + 1)).x, (*(iter + 1)).y });
+			}
 		}
 	}
+	
 }
 
 void CChildView::OnContextMenu(CWnd* pWnd, CPoint point)
@@ -371,7 +374,8 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 			m_pntCur = p;
 			break;
 		case kToolbarDrawCurve:
-			m_points.push_back(p);
+			//m_points.push_back(p);
+			m_curves.back().push_back(p);
 			break;
 		}
 
@@ -391,11 +395,20 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 			m_pntCur = p;
 			break;
 		case kToolbarDrawCurve:
-			m_points.push_back(p);
+			if (m_curves.size() == 0) {
+				m_curves.push_back(std::vector<CPoint>{p});
+			}
+			//m_points.push_back(p);
 			break;
 		}
 	});
-	m_mouse_event_listeners.Add(kMouseLButtonUp, [this](auto, auto p) { m_mouse_event = "LButtonUp"; });
+	m_mouse_event_listeners.Add(kMouseLButtonUp, [this](auto, auto p) { 
+		m_mouse_event = "LButtonUp";
+		switch (m_toolbar_mode) {
+		case kToolbarDrawCurve:
+			m_curves.push_back(std::vector<CPoint>{});
+		}
+		});
 	m_mouse_event_listeners.Add(kMouseLButtonDblClk, [this](auto, auto p) { m_mouse_event = "LButtonDblClk"; });
 
 	m_mouse_event_listeners.Add(kMouseRButtonDown, [this](auto, auto p) { m_mouse_event = "RButtonDown"; });

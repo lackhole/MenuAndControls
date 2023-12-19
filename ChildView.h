@@ -41,6 +41,7 @@ public:
 	//std::vector <CPoint> m_pntCur;
 
 	std::vector <CPoint> m_points;
+	std::vector<std::vector<CPoint>> m_curves;
 	CString m_mouse_event{"None"};
 	CString m_current_time;
 	
