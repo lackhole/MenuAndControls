@@ -35,8 +35,18 @@ public:
 
 public:
 	CPoint m_mouse_pos;
+	CPoint m_pntOld;
+	CPoint m_pntCur;
+	
+	//std::vector <CPoint> m_pntOld;
+	//std::vector <CPoint> m_pntCur;
+
+	std::vector <CPoint> m_points;
+	std::vector<std::vector<CPoint>> m_curves;
 	CString m_mouse_event{"None"};
 	CString m_current_time;
+	
+	
 
 	UINT m_keyboard = -1;
 

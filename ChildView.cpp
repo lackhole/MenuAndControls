@@ -255,6 +255,7 @@ afx_msg void CChildView::OnMyPaint(CDC* dc) {
 
 	// 직선 그리기
 	//Line(dc, {100, 100}, {200, 300});
+	Line(dc, { m_pntOld.x, m_pntOld.y }, {m_pntCur.x, m_pntCur.y});
 
 	// 폴리곤 그리기
 	//Polygon(dc, {{300, 100}, {300, 50}, {250, 75}, {250, 100}}, RGB(255, 0, 255));
@@ -275,7 +276,15 @@ afx_msg void CChildView::OnMyPaint(CDC* dc) {
 			Circle(dc, center, rad, color);
 		}
 	}
-
+	// 곡선 그리기
+	for (auto curve : m_curves) {
+		for (auto iter = curve.begin(); iter != curve.end(); iter++) {
+			if ((iter + 1) != curve.end()) {
+				Line(dc, { (*iter).x, (*iter).y }, { (*(iter + 1)).x, (*(iter + 1)).y });
+			}
+		}
+	}
+	
 }
 
 void CChildView::OnContextMenu(CWnd* pWnd, CPoint point)
@@ -371,6 +380,13 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 			m_circles.back().bottom = p.y;*/
 			m_shapes.back()->p2_ = p;
 			break;
+		case kToolbarDrawLine:
+			m_pntCur = p;
+			break;
+		case kToolbarDrawCurve:
+			//m_points.push_back(p);
+			m_curves.back().push_back(p);
+			break;
 		}
 
 	});
@@ -387,10 +403,26 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 			//m_circles.push_back(CRect{ CPoint{p.x, p.y}, CSize{0,0} });
 			m_shapes.push_back(new CCircle(CPoint{ p.x, p.y }, CPoint{ p.x, p.y }));
 			break;
+		case kToolbarDrawLine:
+			m_pntOld = p;
+			m_pntCur = p;
+			break;
+		case kToolbarDrawCurve:
+			if (m_curves.size() == 0) {
+				m_curves.push_back(std::vector<CPoint>{p});
+			}
+			//m_points.push_back(p);
+			break;
 		}
 	});
+	m_mouse_event_listeners.Add(kMouseLButtonUp, [this](auto, auto p) { 
+		m_mouse_event = "LButtonUp";
+		switch (m_toolbar_mode) {
+		case kToolbarDrawCurve:
+			m_curves.push_back(std::vector<CPoint>{});
+		}
+		});
 
-	m_mouse_event_listeners.Add(kMouseLButtonUp, [this](auto, auto p) { m_mouse_event = "LButtonUp"; });
 	m_mouse_event_listeners.Add(kMouseLButtonDblClk, [this](auto, auto p) { m_mouse_event = "LButtonDblClk"; });
 
 	m_mouse_event_listeners.Add(kMouseRButtonDown, [this](auto, auto p) { m_mouse_event = "RButtonDown"; });
