@@ -501,7 +501,15 @@ void CChildView::OnUpdateDrawCurve(CCmdUI* pCmdUI) {
 }
 
 void CChildView::OnRemoveSelected() {
-	// TODO: 여기에 명령 처리기 코드를 추가합니다.
+	std::list<CRect>::iterator iter = m_shapes.begin();
+	while (iter != m_shapes.end()) {
+		if (*iter->selected_ == true) {
+			iter = m_shapes.erase(iter);
+		}
+		else {
+			iter++;
+		}
+	}
 }
 
 
