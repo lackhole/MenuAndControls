@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "EventListener.h"
+#include "Shape.h"
 
 // CChildView 창
 
@@ -48,11 +49,14 @@ public:
 	CRect m_wall_rect{CPoint{}, CSize{20, 200}};
 
 	// 직사각형 리스트
-	std::list<CRect> m_rects;
+	//std::list<CRect> m_rects;
+
+	// 도형 리스트
+	std::list<CShape*> m_shapes;
 
 
-	// 원 벡터
-	std::list<CRect> m_circles;
+	// 원 리스트
+	//std::list<CRect> m_circles;
 	void CalculateBall();
 
 public:
