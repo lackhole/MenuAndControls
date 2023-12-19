@@ -533,9 +533,9 @@ void CChildView::OnUpdateDrawCurve(CCmdUI* pCmdUI) {
 }
 
 void CChildView::OnRemoveSelected() {
-	std::list<CRect>::iterator iter = m_shapes.begin();
+	auto iter = m_shapes.begin();
 	while (iter != m_shapes.end()) {
-		if (*iter->selected_ == true) {
+		if ((*iter)->selected_ == true) {
 			iter = m_shapes.erase(iter);
 		}
 		else {
