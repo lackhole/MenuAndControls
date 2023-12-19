@@ -43,6 +43,7 @@ public:
 
 	std::vector <CPoint> m_points;
 	std::vector<std::vector<CPoint>> m_curves;
+	std::vector < std::pair<CPoint, CPoint>> m_lines;
 	CString m_mouse_event{"None"};
 	CString m_current_time;
 	

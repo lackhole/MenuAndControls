@@ -255,7 +255,10 @@ afx_msg void CChildView::OnMyPaint(CDC* dc) {
 
 	// 직선 그리기
 	//Line(dc, {100, 100}, {200, 300});
-	Line(dc, { m_pntOld.x, m_pntOld.y }, {m_pntCur.x, m_pntCur.y});
+	//Line(dc, { m_pntOld.x, m_pntOld.y }, {m_pntCur.x, m_pntCur.y});
+	for (auto line : m_lines) {
+		Line(dc, line.first, line.second);
+	}
 
 	// 폴리곤 그리기
 	//Polygon(dc, {{300, 100}, {300, 50}, {250, 75}, {250, 100}}, RGB(255, 0, 255));
@@ -381,7 +384,8 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 			m_shapes.back()->p2_ = p;
 			break;
 		case kToolbarDrawLine:
-			m_pntCur = p;
+			//m_pntCur = p;
+			m_lines.back().second = p;
 			break;
 		case kToolbarDrawCurve:
 			//m_points.push_back(p);
@@ -395,17 +399,15 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		m_mouse_event = "LButtonDown"; 
 		switch (m_toolbar_mode) {
 		case kToolbarDrawRectangle:
-			//m_rects.push_back(CRect{ CPoint{p.x, p.y}, CSize{0,0} });
 			m_shapes.push_back(new CRectangle(CPoint{ p.x, p.y }, CPoint{p.x, p.y}));
-			//m_shapes.push_back(std::make_shared<CRectangle>(CPoint{ p.x, p.y }));
 			break;
 		case kToolbarDrawCircle:
-			//m_circles.push_back(CRect{ CPoint{p.x, p.y}, CSize{0,0} });
 			m_shapes.push_back(new CCircle(CPoint{ p.x, p.y }, CPoint{ p.x, p.y }));
 			break;
 		case kToolbarDrawLine:
-			m_pntOld = p;
-			m_pntCur = p;
+			m_lines.push_back({ CPoint(p), CPoint(p) });
+			/*m_pntOld = p;
+			m_pntCur = p;*/
 			break;
 		case kToolbarDrawCurve:
 			if (m_curves.size() == 0) {
