@@ -7,11 +7,14 @@
 
 #include <string>
 #include <functional>
+#include <memory>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
 #include "EventListener.h"
+#include "shape.h"
+#include "shape_builder.h"
 
 // CChildView 창
 
@@ -31,23 +34,6 @@ public:
 	};
 
 	ToolbarMode m_toolbar_mode = kToolbarNone;
-
-public:
-	CPoint m_mouse_pos;
-	CString m_mouse_event{"None"};
-	CString m_current_time;
-
-	UINT m_keyboard = -1;
-
-	// 공 정보
-	CPoint m_ball_pos;
-	int m_ball_radius = 10;
-	CPoint m_ball_velocity{5, -5};
-
-	// 고무벽 정보
-	CRect m_wall_rect{CPoint{}, CSize{20, 200}};
-
-	void CalculateBall();
 
 public:
 
@@ -114,10 +100,30 @@ public:
 	afx_msg void OnUpdateDrawCircle(CCmdUI* pCmdUI);
 	afx_msg void OnDrawCurve();
 	afx_msg void OnUpdateDrawCurve(CCmdUI* pCmdUI);
+	EventListener<ToolbarMode> m_toolbar_listeners;
+
+	using shape_type = std::unique_ptr<ShapeBase>;
+	using shape_list_type = std::list<shape_type>;
+	using shape_iterator = typename shape_list_type::iterator;
+
+	shape_list_type m_shapes;
+	shape_type m_shape_preview;
+
+	void UnselectToolbar();
+
+	void RemoveSelectedObjects();
+
+	std::vector<shape_iterator> FindObjectsInArea();
+	void CreateSelectedHighlights();
 
 	afx_msg void OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
 	EventListener<UINT, UINT, UINT> m_keyboard_listeners;
 
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
+
+	std::unique_ptr<ShapeBuilderBase> m_shape_builder;
+
+	std::vector<typename std::list<std::unique_ptr<ShapeBase>>::iterator> m_selected_shapes;
+	std::vector<ShapeRectangle> m_selected_highlights;
 };
 
