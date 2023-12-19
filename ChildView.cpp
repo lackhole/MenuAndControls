@@ -69,7 +69,7 @@ void Circle(CDC* dc,
 void Rectangle(CDC* dc,
 							 CRect rect, COLORREF color,
 							 int thickness = 1, COLORREF color_line = RGB(0, 0, 0)) {
-	CPen pen(thickness <= 0 ? PS_NULL : PS_SOLID, thickness, color_line);
+	CPen pen(thickness <= 0 ? PS_DASH : PS_SOLID, thickness, color_line);
 	auto pen_prev = dc->SelectObject(&pen);
 
 	CBrush brush(color);
@@ -188,6 +188,9 @@ BEGIN_MESSAGE_MAP(CChildView, CWnd)
 	ON_UPDATE_COMMAND_UI(ID_DRAW_CURVE, &CChildView::OnUpdateDrawCurve)
 	ON_WM_KEYDOWN()
 	ON_WM_ERASEBKGND()
+
+	// Add command, Resource.h에 커맨드 추가해야함!
+	// ON_COMMAND(ID_SELECT_AREA, &CChildView::OnSelectArea)
 END_MESSAGE_MAP()
 
 
@@ -257,17 +260,22 @@ afx_msg void CChildView::OnMyPaint(CDC* dc) {
 	// 폴리곤 그리기
 	//Polygon(dc, {{300, 100}, {300, 50}, {250, 75}, {250, 100}}, RGB(255, 0, 255));
 
-	// 직사각형들 그리기
-	for (auto x : m_rects)
-		Rectangle(dc, x, RGB(255, 255, 0));
 
-	// 원들 그리기
-	for (auto x : m_circles) {
-		int rad = abs(x.left - x.right) / 2;
-		CPoint center{ x.left + rad, x.top + rad };
-		Circle(dc, center, rad, RGB(255, 255, 255));
+	// 선택 영역 직사각형 표기
+	Area = CRect(TOP_LEFT, BOTTOM_RIGHT);
+	Rectangle(dc, Area, RGB(255, 255, 255), -1, RGB(0, 0, 255));
+
+	for (auto x : m_shapes) {
+		auto color = RGB(255, 255, 0);
+		if (x->selected_) color = RGB(0, 0, 255);
+		if(dynamic_cast<CRectangle *>(x))
+			Rectangle(dc, CRect{ x->p1_, x->p2_ }, color, 1);
+		else if (dynamic_cast<CCircle*>(x)) {
+			int rad = abs(x->p1_.x - x->p2_.x) / 2;
+			CPoint center{ (x->p1_.x + x->p2_.x) / 2, (x->p1_.y + x->p2_.y) / 2 };
+			Circle(dc, center, rad, color);
+		}
 	}
-
 	// 곡선 그리기
 	for (auto curve : m_curves) {
 		for (auto iter = curve.begin(); iter != curve.end(); iter++) {
@@ -363,12 +371,14 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_mouse_event_listeners.Add(kMouseDrag, [this](auto, auto p) {
 		switch (m_toolbar_mode) {
 		case kToolbarDrawRectangle:
-			m_rects.back().right = p.x;
-			m_rects.back().bottom = p.y;
+			/*m_rects.back().right = p.x;
+			m_rects.back().bottom = p.y;*/
+			m_shapes.back()->p2_ = p;
 			break;
 		case kToolbarDrawCircle:
-			m_circles.back().right = p.x;
-			m_circles.back().bottom = p.y;
+			/*m_circles.back().right = p.x;
+			m_circles.back().bottom = p.y;*/
+			m_shapes.back()->p2_ = p;
 			break;
 		case kToolbarDrawLine:
 			m_pntCur = p;
@@ -385,10 +395,13 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		m_mouse_event = "LButtonDown"; 
 		switch (m_toolbar_mode) {
 		case kToolbarDrawRectangle:
-			m_rects.push_back(CRect{ CPoint{p.x, p.y}, CSize{0,0} });
+			//m_rects.push_back(CRect{ CPoint{p.x, p.y}, CSize{0,0} });
+			m_shapes.push_back(new CRectangle(CPoint{ p.x, p.y }, CPoint{p.x, p.y}));
+			//m_shapes.push_back(std::make_shared<CRectangle>(CPoint{ p.x, p.y }));
 			break;
 		case kToolbarDrawCircle:
-			m_circles.push_back(CRect{ CPoint{p.x, p.y},CSize{0,0} });
+			//m_circles.push_back(CRect{ CPoint{p.x, p.y}, CSize{0,0} });
+			m_shapes.push_back(new CCircle(CPoint{ p.x, p.y }, CPoint{ p.x, p.y }));
 			break;
 		case kToolbarDrawLine:
 			m_pntOld = p;
@@ -409,6 +422,7 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 			m_curves.push_back(std::vector<CPoint>{});
 		}
 		});
+
 	m_mouse_event_listeners.Add(kMouseLButtonDblClk, [this](auto, auto p) { m_mouse_event = "LButtonDblClk"; });
 
 	m_mouse_event_listeners.Add(kMouseRButtonDown, [this](auto, auto p) { m_mouse_event = "RButtonDown"; });
@@ -424,7 +438,42 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	// ESC 시 그리기 모드 취소
 	m_keyboard_listeners.Add(VK_ESCAPE, [this](...) { m_toolbar_mode = kToolbarNone; });
 
-	return 0;
+	// 영역 선택 마우스 이벤트 -> 다운
+	m_mouse_event_listeners.Add(kMouseLButtonDown, [this](auto, auto p) {
+		if (m_toolbar_mode == kToolbarSelectArea) { // 툴바에서 영역 선택 버튼을 눌렀을 경우
+			TOP_LEFT = p;
+		}
+	});
+	// 영역 선택 마우스 이벤트 -> 드래그
+	m_mouse_event_listeners.Add(kMouseDrag, [this](auto, auto p) {
+		if (m_toolbar_mode == kToolbarSelectArea) { // 툴바에서 영역 선택 버튼을 눌렀을 경우
+			BOTTOM_RIGHT = p;
+		}
+	});
+	// 영역 선택 마우스 이벤트 -> 업
+	m_mouse_event_listeners.Add(kMouseLButtonUp, [this](auto, auto p) { 
+		if (m_toolbar_mode == kToolbarSelectArea) { // 툴바에서 영역 선택 버튼을 눌렀을 경우
+			BOTTOM_RIGHT = p;
+
+			auto iter = m_shapes.begin();
+
+			while (iter != m_shapes.end()) {
+				int shape_tl_x = (*iter)->p1_.x;
+				int shape_tl_y = (*iter)->p1_.y;
+
+				int shape_br_x = (*iter)->p2_.x;
+				int shape_br_y = (*iter)->p2_.y;
+
+				if (TOP_LEFT.x <= shape_tl_x && shape_br_x <= BOTTOM_RIGHT.x && TOP_LEFT.y <= shape_tl_y && shape_br_y <= BOTTOM_RIGHT.y) {
+					(*iter)->selected_ = true;
+				}
+				else {
+					(*iter)->selected_ = false;
+				}
+				iter++;
+			}
+		}
+	});
 }
 
 void CChildView::OnMouseMove(UINT nFlags, CPoint point) {
@@ -535,7 +584,17 @@ void CChildView::OnUpdateDrawCurve(CCmdUI* pCmdUI) {
 }
 
 void CChildView::OnRemoveSelected() {
-	// TODO: 여기에 명령 처리기 코드를 추가합니다.
+	auto iter = m_shapes.begin();
+	while (iter != m_shapes.end()) {
+		if ((*iter)->selected_ == true) {
+			iter = m_shapes.erase(iter);
+		}
+		else {
+			iter++;
+		}
+	}
+	BOTTOM_RIGHT = 0;
+	TOP_LEFT = 0;
 }
 
 
