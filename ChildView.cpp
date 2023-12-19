@@ -6,23 +6,28 @@
 #include "MenuAndControls.h"
 #include "ChildView.h"
 
+
 #include <iostream>
 #include <chrono>
 #include <ctime>
 #include <iomanip>
 #include <string>
 #include <sstream>
+#include <thread>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
 
 
+<<<<<<< Updated upstream
 std::vector<CRect> rect_arr;
 int rect_cnt = 0;
 
 
 
+=======
+>>>>>>> Stashed changes
 namespace {
 
 CString GetSystemTimeAndDate() {
@@ -32,8 +37,6 @@ CString GetSystemTimeAndDate() {
 
 /*
 \brief: 원을 그립니다
-
-
 \dc: 디바이스 컨텍스트
 \center: 원의 중심 좌표
 \radius: 원의 반지름
@@ -42,8 +45,8 @@ CString GetSystemTimeAndDate() {
 \color_line: 테두리의 색
 */
 void Circle(CDC* dc,
-						CPoint center, int radius, COLORREF color,
-						int thickness = 1, COLORREF color_line = RGB(0, 0, 0))
+			CPoint center, int radius, COLORREF color,
+			int thickness = 1, COLORREF color_line = RGB(0, 0, 0))
 {
   // 새로운 펜 객체 사용
 	CPen pen(thickness <= 0 ? PS_NULL : PS_SOLID, thickness, color_line);
@@ -64,8 +67,6 @@ void Circle(CDC* dc,
 
 /*
 \brief: 직사각형을 그립니다
-
-
 \dc: 디바이스 컨텍스트
 \rect: 직사각형의 좌표
 \color: 도형의 내부 색
@@ -73,8 +74,8 @@ void Circle(CDC* dc,
 \color_line: 테두리의 색
 */
 void Rectangle(CDC* dc,
-							 CRect rect, COLORREF color,
-							 int thickness = 1, COLORREF color_line = RGB(0, 0, 0)) {
+				CRect rect, COLORREF color,
+				int thickness = 1, COLORREF color_line = RGB(0, 0, 0)) {
 	CPen pen(thickness <= 0 ? PS_NULL : PS_SOLID, thickness, color_line);
 	auto pen_prev = dc->SelectObject(&pen);
 
@@ -159,6 +160,7 @@ void Polygon(CDC* dc,
 
 CChildView::CChildView()
 {
+	
 }
 
 CChildView::~CChildView()
@@ -198,7 +200,7 @@ END_MESSAGE_MAP()
 
 
 
-// CChildView 메시지 처리기
+// CChildView 메시지 ma
 
 BOOL CChildView::PreCreateWindow(CREATESTRUCT& cs) 
 {
@@ -233,6 +235,20 @@ void CChildView::OnPaint()
 
 	dc.BitBlt(0, 0, rect.Width(), rect.Height(), &memDC,
 						0, 0, SRCCOPY);
+
+
+
+	if (m_toolbar_mode == kToolbarDrawRectangle) {
+		// 직사각형 그리기
+		CRect rect(m_ptRectStart, m_ptRectEnd);
+		dc.Rectangle(rect);
+	}
+	if (m_toolbar_mode == kToolbarDrawCircle) {
+		// 원 그리기
+		int radius = static_cast<int>(sqrt(pow(m_ptCirEnd.x - m_ptCirStart.x, 2) + pow(m_ptCirEnd.y - m_ptCirStart.y, 2)));
+		dc.Ellipse(m_ptCirStart.x - radius, m_ptCirStart.y - radius,
+			m_ptCirStart.x + radius, m_ptCirStart.y + radius);
+	}
 }
 */
 
@@ -271,7 +287,6 @@ afx_msg void CChildView::OnMyPaint(CDC* dc) {
 	// 마우스 이벤트 표시
 	dc->TextOut(10, 50, _T("Event: ") + m_mouse_event);
 
-
 	dc->TextOut(10, 70, _T("Keyboard: ") + CString(std::to_string(m_keyboard).c_str()));
 
 	// 튀기는 공 그리기
@@ -285,6 +300,16 @@ afx_msg void CChildView::OnMyPaint(CDC* dc) {
 
 	// 폴리곤 그리기
 	Polygon(dc, {{300, 100}, {300, 50}, {250, 75}, {250, 100}}, RGB(255, 0, 255));
+
+	//마우스로 드래그해 사각형 그리기(문제1)
+	if (m_toolbar_mode == kToolbarDrawRectangle) {
+		//눌려져있을때
+		
+		//뗏을때
+	}
+
+
+
 }
 */
 
@@ -442,6 +467,10 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		});
 
 
+	/*m_mouse_event_listeners.Add(kMouseMove, [this](auto, auto p) {
+		m_ ? ? ? = p;
+	});*/
+
 	// 마우스 클릭 이벤트 리스너
 	m_mouse_event_listeners.Add(kMouseLButtonDown, [this](auto, auto p) { m_mouse_event = "LButtonDown"; });
 	m_mouse_event_listeners.Add(kMouseLButtonUp, [this](auto, auto p) { m_mouse_event = "LButtonUp"; });
@@ -465,6 +494,19 @@ void CChildView::OnMouseMove(UINT nFlags, CPoint point) {
 	m_mouse_event_listeners(kMouseMove, nFlags, point);
 	CWnd::Invalidate();
 	CWnd::OnMouseMove(nFlags, point);
+
+	if (m_toolbar_mode == kToolbarDrawRectangle && m_bIsDrawing) {
+		m_ptRectEnd = point;   // 끝점 업데이트
+		Invalidate();          // 화면을 다시 그립니다.
+	}
+
+	if (m_toolbar_mode == kToolbarDrawRectangle && m_bIsDrawing) {
+		m_ptCirEnd = point;   // 끝점 업데이트
+		Invalidate();          // 화면을 다시 그립니다.
+	}
+
+	CWnd::OnMouseMove(nFlags, point);
+
 }
 
 void CChildView::OnLButtonDown(UINT nFlags, CPoint point) {
@@ -472,12 +514,38 @@ void CChildView::OnLButtonDown(UINT nFlags, CPoint point) {
 	CWnd::SetCapture();
 	CWnd::Invalidate();
 	CWnd::OnLButtonDown(nFlags, point);
+
+	if (m_toolbar_mode == kToolbarDrawRectangle) {
+		m_bIsDrawing = true;    // 그리기 시작
+		m_ptRectStart = point;  // 사각형 시작점 설정
+		m_ptRectEnd = point;    // 사각형 초기 끝점 설정
+	}
+	CWnd::OnLButtonDown(nFlags, point);
+
+	if (m_toolbar_mode == kToolbarDrawCircle) {
+		m_bIsDrawing = true;	
+		m_ptCirStart = point;	//원 시작점 설정
+		m_ptCirEnd = point;		//원 초기 끝점 설정
+	}
 }
 
 void CChildView::OnLButtonUp(UINT nFlags, CPoint point) {
 	m_mouse_event_listeners(kMouseLButtonUp, nFlags, point);
 	ReleaseCapture();
 	CWnd::Invalidate();
+	CWnd::OnLButtonUp(nFlags, point);
+
+	if (m_toolbar_mode == kToolbarDrawRectangle && m_bIsDrawing) {
+		m_bIsDrawing = false;   // 그리기 완료
+		m_ptRectEnd = point;    // 최종 끝점 설정
+		Invalidate();           // 최종 화면을 다시 그립니다.
+	}
+
+	if (m_toolbar_mode == kToolbarDrawCircle && m_bIsDrawing) {
+		m_bIsDrawing = false;
+		m_ptCirEnd = point;
+		Invalidate();
+	}
 	CWnd::OnLButtonUp(nFlags, point);
 }
 
@@ -589,7 +657,6 @@ void CChildView::OnDrawCircle() {
 void CChildView::OnUpdateDrawCircle(CCmdUI* pCmdUI) {
 	pCmdUI->SetCheck(m_toolbar_mode == kToolbarDrawCircle);
 }
-
 
 BOOL CChildView::OnEraseBkgnd(CDC* pDC) {
 	return TRUE;
