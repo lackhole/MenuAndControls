@@ -259,20 +259,23 @@ afx_msg void CChildView::OnMyPaint(CDC* dc) {
 	// 폴리곤 그리기
 	//Polygon(dc, {{300, 100}, {300, 50}, {250, 75}, {250, 100}}, RGB(255, 0, 255));
 
+
+	// 선택 영역 직사각형 표기
+	Area = CRect(TOP_LEFT, BOTTOM_RIGHT);
+	Rectangle(dc, Area, RGB(255, 255, 255));
+
 	for (auto x : m_shapes) {
+		auto color = RGB(255, 255, 0);
+		if (x->selected_) color = RGB(0, 0, 255);
 		if(dynamic_cast<CRectangle *>(x))
-			Rectangle(dc, CRect{ x->p1_, x->p2_ }, RGB(255, 255, 0), 0);
+			Rectangle(dc, CRect{ x->p1_, x->p2_ }, color, 0);
 		else if (dynamic_cast<CCircle*>(x)) {
 			int rad = abs(x->p1_.x - x->p2_.x) / 2;
 			CPoint center{ (x->p1_.x + x->p2_.x) / 2, (x->p1_.y + x->p2_.y) / 2 };
-			Circle(dc, center, rad, RGB(255, 255, 255));
+			Circle(dc, center, rad, color);
 		}
 	}
 
-	// 선택 영역 직사각형 표기
-	CRect Area(TOP_LEFT, BOTTOM_RIGHT);
-
-	Rectangle(dc, Area, RGB(255, 255, 255));
 }
 
 void CChildView::OnContextMenu(CWnd* pWnd, CPoint point)
@@ -419,10 +422,26 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_mouse_event_listeners.Add(kMouseLButtonUp, [this](auto, auto p) { 
 		if (m_toolbar_mode == kToolbarSelectArea) { // 툴바에서 영역 선택 버튼을 눌렀을 경우
 			BOTTOM_RIGHT = p;
+
+			auto iter = m_shapes.begin();
+
+			while (iter != m_shapes.end()) {
+				int shape_tl_x = (*iter)->p1_.x;
+				int shape_tl_y = (*iter)->p1_.y;
+
+				int shape_br_x = (*iter)->p2_.x;
+				int shape_br_y = (*iter)->p2_.y;
+
+				if (TOP_LEFT.x <= shape_tl_x && shape_br_x <= BOTTOM_RIGHT.x && TOP_LEFT.y <= shape_tl_y && shape_br_y <= BOTTOM_RIGHT.y) {
+					(*iter)->selected_ = true;
+				}
+				else {
+					(*iter)->selected_ = false;
+				}
+				iter++;
+			}
 		}
 	});
-
-	return 0;
 }
 
 void CChildView::OnMouseMove(UINT nFlags, CPoint point) {

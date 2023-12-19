@@ -51,13 +51,12 @@ public:
 	// 도형 리스트
 	std::list<CShape*> m_shapes;
 
-
-
 	void CalculateBall();
 
 	// 영역 선택 변수들
 	CPoint TOP_LEFT;
 	CPoint BOTTOM_RIGHT;
+	CRect Area;
 
 public:
 
