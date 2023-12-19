@@ -188,6 +188,9 @@ BEGIN_MESSAGE_MAP(CChildView, CWnd)
 	ON_UPDATE_COMMAND_UI(ID_DRAW_CURVE, &CChildView::OnUpdateDrawCurve)
 	ON_WM_KEYDOWN()
 	ON_WM_ERASEBKGND()
+
+	// Add command, Resource.h에 커맨드 추가해야함!
+	// ON_COMMAND(ID_SELECT_AREA, &CChildView::OnSelectArea)
 END_MESSAGE_MAP()
 
 
@@ -265,6 +268,11 @@ afx_msg void CChildView::OnMyPaint(CDC* dc) {
 			Circle(dc, center, rad, RGB(255, 255, 255));
 		}
 	}
+
+	// 선택 영역 직사각형 표기
+	CRect Area(TOP_LEFT, BOTTOM_RIGHT);
+
+	Rectangle(dc, Area, RGB(255, 255, 255));
 }
 
 void CChildView::OnContextMenu(CWnd* pWnd, CPoint point)
@@ -378,6 +386,7 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 			break;
 		}
 	});
+
 	m_mouse_event_listeners.Add(kMouseLButtonUp, [this](auto, auto p) { m_mouse_event = "LButtonUp"; });
 	m_mouse_event_listeners.Add(kMouseLButtonDblClk, [this](auto, auto p) { m_mouse_event = "LButtonDblClk"; });
 
@@ -393,6 +402,25 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_mouse_event_listeners.Add(kMouseRButtonDown, [this](auto, auto p) { m_toolbar_mode = kToolbarNone; });
 	// ESC 시 그리기 모드 취소
 	m_keyboard_listeners.Add(VK_ESCAPE, [this](...) { m_toolbar_mode = kToolbarNone; });
+
+	// 영역 선택 마우스 이벤트 -> 다운
+	m_mouse_event_listeners.Add(kMouseLButtonDown, [this](auto, auto p) {
+		if (m_toolbar_mode == kToolbarSelectArea) { // 툴바에서 영역 선택 버튼을 눌렀을 경우
+			TOP_LEFT = p;
+		}
+	});
+	// 영역 선택 마우스 이벤트 -> 드래그
+	m_mouse_event_listeners.Add(kMouseDrag, [this](auto, auto p) {
+		if (m_toolbar_mode == kToolbarSelectArea) { // 툴바에서 영역 선택 버튼을 눌렀을 경우
+			BOTTOM_RIGHT = p;
+		}
+	});
+	// 영역 선택 마우스 이벤트 -> 업
+	m_mouse_event_listeners.Add(kMouseLButtonUp, [this](auto, auto p) { 
+		if (m_toolbar_mode == kToolbarSelectArea) { // 툴바에서 영역 선택 버튼을 눌렀을 경우
+			BOTTOM_RIGHT = p;
+		}
+	});
 
 	return 0;
 }

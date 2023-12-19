@@ -50,14 +50,34 @@ public:
 
 	// 직사각형 리스트
 	//std::list<CRect> m_rects;
+<<<<<<< Updated upstream
+
+	// 도형 리스트
+	std::list<CShape*> m_shapes;
+=======
+>>>>>>> Stashed changes
 
 	// 도형 리스트
 	std::list<CShape*> m_shapes;
 
+<<<<<<< Updated upstream
+	// 원 리스트
+	//std::list<CRect> m_circles;
+=======
+<<<<<<< HEAD
+	// 원 벡터
+	std::list<CRect> m_circles;
+=======
 
 	// 원 리스트
 	//std::list<CRect> m_circles;
+>>>>>>> 3f8f7a648268bceffa683ba6322bd09e52b9c7a6
+>>>>>>> Stashed changes
 	void CalculateBall();
+
+	// 영역 선택 변수들
+	CPoint TOP_LEFT;
+	CPoint BOTTOM_RIGHT;
 
 public:
 
