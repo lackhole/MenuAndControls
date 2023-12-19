@@ -561,6 +561,8 @@ void CChildView::OnRemoveSelected() {
 			iter++;
 		}
 	}
+	TOP_LEFT = { 0,0 };
+	BOTTOM_RIGHT = { 0,0 };
 }
 
 
