@@ -252,6 +252,7 @@ afx_msg void CChildView::OnMyPaint(CDC* dc) {
 
 	// 직선 그리기
 	//Line(dc, {100, 100}, {200, 300});
+	Line(dc, { m_pntOld.x, m_pntOld.y }, {m_pntCur.x, m_pntCur.y});
 
 	// 폴리곤 그리기
 	//Polygon(dc, {{300, 100}, {300, 50}, {250, 75}, {250, 100}}, RGB(255, 0, 255));
@@ -265,6 +266,13 @@ afx_msg void CChildView::OnMyPaint(CDC* dc) {
 		int rad = abs(x.left - x.right) / 2;
 		CPoint center{ x.left + rad, x.top + rad };
 		Circle(dc, center, rad, RGB(255, 255, 255));
+	}
+
+	// 곡선 그리기
+	for (auto iter = m_points.begin(); iter != m_points.end(); iter++) {
+		if ((iter + 1) != m_points.end()) {
+			Line(dc, {(*iter).x, (*iter).y}, {(*(iter + 1)).x, (*(iter + 1)).y});
+		}
 	}
 }
 
@@ -359,6 +367,12 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 			m_circles.back().right = p.x;
 			m_circles.back().bottom = p.y;
 			break;
+		case kToolbarDrawLine:
+			m_pntCur = p;
+			break;
+		case kToolbarDrawCurve:
+			m_points.push_back(p);
+			break;
 		}
 
 	});
@@ -371,6 +385,13 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 			break;
 		case kToolbarDrawCircle:
 			m_circles.push_back(CRect{ CPoint{p.x, p.y},CSize{0,0} });
+			break;
+		case kToolbarDrawLine:
+			m_pntOld = p;
+			m_pntCur = p;
+			break;
+		case kToolbarDrawCurve:
+			m_points.push_back(p);
 			break;
 		}
 	});
